@@ -20,6 +20,10 @@ from marks import ignore_order
 from pyspark.sql.types import *
 import pyspark.sql.functions as f
 
+
+# Mark all tests in current file as slow test since it would require ~15mins in total
+pytestmark = pytest.mark.slow_test
+
 def four_op_df(spark, gen, length=2048, seed=0):
     return gen_df(spark, StructGen([
         ('a', gen),
