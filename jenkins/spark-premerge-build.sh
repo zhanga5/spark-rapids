@@ -18,6 +18,7 @@
 set -ex
 
 BUILD_TYPE=all
+PYTEST_TAG=${PYTEST_TAG:-''}
 
 if [[ $# -eq 1 ]]; then
     BUILD_TYPE=$1
@@ -51,7 +52,7 @@ mvn_verify() {
     tar zxf $SPARK_HOME.tgz -C $ARTF_ROOT && \
         rm -f $SPARK_HOME.tgz
 
-    mvn -U -B $MVN_URM_MIRROR '-P!snapshot-shims,pre-merge' clean verify -Dpytest.TEST_TAGS='' \
+    mvn -U -B $MVN_URM_MIRROR '-P!snapshot-shims,pre-merge' clean verify -Dpytest.TEST_TAGS="$PYTEST_TAG" \
         -Dpytest.TEST_TYPE="pre-commit" -Dpytest.TEST_PARALLEL=3 -Dcuda.version=$CUDA_CLASSIFIER
 
     # The jacoco coverage should have been collected, but because of how the shade plugin
@@ -103,9 +104,9 @@ unit_test() {
     # All others shims test should be covered in nightly pipelines
     # Disabled until Spark 3.2 source incompatibility fixed, see https://github.com/NVIDIA/spark-rapids/issues/2052
     #env -u SPARK_HOME mvn -U -B $MVN_URM_MIRROR -Pspark320tests,snapshot-shims test -Dpytest.TEST_TAGS='' -Dcuda.version=$CUDA_CLASSIFIER
-    env -u SPARK_HOME mvn -U -B $MVN_URM_MIRROR -Pspark303tests,snapshot-shims test -Dpytest.TEST_TAGS='' -Dcuda.version=$CUDA_CLASSIFIER
-    env -u SPARK_HOME mvn -U -B $MVN_URM_MIRROR -Pspark304tests,snapshot-shims test -Dpytest.TEST_TAGS='' -Dcuda.version=$CUDA_CLASSIFIER
-    env -u SPARK_HOME mvn -U -B $MVN_URM_MIRROR -Pspark312tests,snapshot-shims test -Dpytest.TEST_TAGS='' -Dcuda.version=$CUDA_CLASSIFIER
+    # env -u SPARK_HOME mvn -U -B $MVN_URM_MIRROR -Pspark303tests,snapshot-shims test -Dpytest.TEST_TAGS='' -Dcuda.version=$CUDA_CLASSIFIER
+    # env -u SPARK_HOME mvn -U -B $MVN_URM_MIRROR -Pspark304tests,snapshot-shims test -Dpytest.TEST_TAGS='' -Dcuda.version=$CUDA_CLASSIFIER
+    # env -u SPARK_HOME mvn -U -B $MVN_URM_MIRROR -Pspark312tests,snapshot-shims test -Dpytest.TEST_TAGS='' -Dcuda.version=$CUDA_CLASSIFIER
     env -u SPARK_HOME mvn -U -B $MVN_URM_MIRROR -Pspark313tests,snapshot-shims test -Dpytest.TEST_TAGS='' -Dcuda.version=$CUDA_CLASSIFIER
 }
 

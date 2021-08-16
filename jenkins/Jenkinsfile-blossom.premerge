@@ -116,7 +116,7 @@ pipeline {
                             ]
                     )
 
-                    stash(name: "source_tree", includes: "**")
+                    stash(name: "source_tree", includes: "**", useDefaultExcludes: false) // Not use default excludeds in order to include git folders
 
                     container('docker-build') {
                         // check if pre-merge dockerfile modified
@@ -177,7 +177,8 @@ pipeline {
                         script {
                             container('gpu') {
                                 timeout(time: 4, unit: 'HOURS') { // step only timeout for test run
-                                    sh "$PREMERGE_SCRIPT mvn_verify"
+                                    // Skip 'slow_test' by default, which will be run from another pod in parallel
+                                    sh "PYTEST_TAG='not slow_test' $PREMERGE_SCRIPT mvn_verify"
                                     step([$class                : 'JacocoPublisher',
                                           execPattern           : '**/target/jacoco.exec',
                                           classPattern          : 'target/jacoco_classes/',
@@ -190,7 +191,7 @@ pipeline {
                     }
                 } // end of mvn verify stage
 
-                stage('Unit Test') {
+                stage('unit test & slow test') {
                     options {
                         // We have to use params to pass the resource label in options block,
                         // this is a limitation of declarative pipeline. And we need to lock resource before agent start
@@ -213,6 +214,8 @@ pipeline {
                             container('gpu') {
                                 timeout(time: 4, unit: 'HOURS') {
                                     sh "$PREMERGE_SCRIPT unit_test"
+                                    // Run 'slow_test' together with unit test to minimize overall test duration
+                                    sh "PYTEST_TAG='slow_test' $PREMERGE_SCRIPT mvn_verify"
                                 }
                             }
                         }
