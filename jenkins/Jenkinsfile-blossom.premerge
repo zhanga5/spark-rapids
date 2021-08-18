@@ -165,7 +165,7 @@ pipeline {
                     }
                     agent {
                         kubernetes {
-                            label "premerge-test-it-${BUILD_TAG}"
+                            label "premerge-test-mv-${BUILD_TAG}"
                             cloud 'sc-ipp-blossom-prod'
                             yaml pod.getGPUYAML("${IMAGE_PREMERGE}", "${env.GPU_RESOURCE}", '8', '32Gi') // cpu: 8, memory: 32Gi
                             workspaceVolume persistentVolumeClaimWorkspaceVolume(claimName: "${PVC}", readOnly: false)
@@ -198,7 +198,7 @@ pipeline {
                     }
                     agent {
                         kubernetes {
-                            label "premerge-test-ut-${BUILD_TAG}"
+                            label "premerge-test-it-${BUILD_TAG}"
                             cloud 'sc-ipp-blossom-prod'
                             yaml pod.getGPUYAML("${IMAGE_PREMERGE}", "${env.GPU_RESOURCE}", '8', '32Gi') // cpu: 8, memory: 32Gi
                             workspaceVolume persistentVolumeClaimWorkspaceVolume(claimName: "${PVC}", readOnly: false)

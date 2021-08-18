@@ -93,7 +93,7 @@ rapids_shuffle_smoke_test() {
 integration_test() {
     echo "Run integration testings..."
     mvn -U -B $MVN_URM_MIRROR clean package -DskipTests=true -Dcuda.version=$CUDA_CLASSIFIER
-    TEST_TAGS="not slow_test" TEST_TYPE="pre-commit" TEST_PARALLEL=3 ./integration_tests/run_pyspark_from_build.sh
+    TEST_TAGS="not slow_test" TEST_TYPE="pre-commit" TEST_PARALLEL=5 ./integration_tests/run_pyspark_from_build.sh
 }
 
 
