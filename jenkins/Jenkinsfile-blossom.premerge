@@ -184,10 +184,8 @@ pipeline {
                                           sourcePattern         : 'shuffle-plugin/src/main/scala/,udf-compiler/src/main/scala/,sql-plugin/src/main/java/,sql-plugin/src/main/scala/,shims/spark311/src/main/scala/,shims/spark301db/src/main/scala/,shims/spark301/src/main/scala/,shims/spark302/src/main/scala/,shims/spark303/src/main/scala/,shims/spark304/src/main/scala/,shims/spark312/src/main/scala/,shims/spark313/src/main/scala/',
                                           sourceInclusionPattern: '**/*.java,**/*.scala'
                                     ])
-                                    step([$class                : 'JUnitResultArchiver',
-                                          skipPublishingChecks  : true,
-                                          testResults           : '**/target/*/TEST-*.xml'
-                                    ])
+                                    stash(name: "test_result_mvn_verify", includes: "**/target/*/TEST-*.xml")
+
                                 }
                             }
                         }
@@ -217,6 +215,7 @@ pipeline {
                             container('gpu') {
                                 timeout(time: 4, unit: 'HOURS') {
                                     sh "$PREMERGE_SCRIPT unit_test"
+                                    stash(name: "test_result_unit_test", includes: "**/target/*/TEST-*.xml")
                                 }
                             }
                         }
@@ -224,6 +223,29 @@ pipeline {
                 } // end of Unit Test stage
             } // end of parallel
         } // end of Premerge Test
+
+        stage('Collect Test Result') {
+            when {
+                expression {
+                    !skipped
+                }
+            }
+
+            steps {
+                dir('mvn_verify') {
+                    unstash "test_result_mvn_verify"
+                }
+
+                dir('unit_test') {
+                    unstash "test_result_unit_test"
+                }
+
+                step([$class                : 'JUnitResultArchiver',
+                       testResults          : '**/target/*/TEST-*.xml'
+                       skipPublishingChecks : true,
+                ])
+            }
+        } // Collect Test Result
     } // end of stages
 
     post {
