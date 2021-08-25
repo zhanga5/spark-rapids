@@ -86,7 +86,7 @@ pipeline {
             steps {
                 script {
                     // Retrieve PROJECT_VER from version-def.sh, e.g, '21.10.0-SNAPSHOT'
-                    PROJECT_VER = sh(returnStdout: true, script: "source $JENKINS_ROOT/version-def.sh > /dev/null && echo $PROJECT_VER")
+                    PROJECT_VER = sh(returnStdout: true, script: ". $JENKINS_ROOT/version-def.sh > /dev/null && echo $PROJECT_VER")
                     PROJECT_VER = PROJECT_VER.split('-')[0] // Remove trailing '-SNAPSHOT'
                 }
             }
