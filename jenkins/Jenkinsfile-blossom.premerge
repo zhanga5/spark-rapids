@@ -82,16 +82,6 @@ pipeline {
             }
         } // end of Init githubHelper
 
-        stage("Determine Project Version") {
-            steps {
-                script {
-                    // Retrieve PROJECT_VER from version-def.sh, e.g, '21.10.0-SNAPSHOT'
-                    PROJECT_VER = sh(returnStdout: true, script: ". $JENKINS_ROOT/version-def.sh > /dev/null && echo $PROJECT_VER")
-                    PROJECT_VER = PROJECT_VER.split('-')[0] // Remove trailing '-SNAPSHOT'
-                }
-            }
-        }
-
         stage('Build docker image') {
             when {
                 beforeAgent true
@@ -154,6 +144,16 @@ pipeline {
                 }
             }
         } // end of Build docker image
+
+        stage("Determine Project Version") {
+            steps {
+                script {
+                    // Retrieve PROJECT_VER from version-def.sh, e.g, '21.10.0-SNAPSHOT'
+                    PROJECT_VER = sh(returnStdout: true, script: ". $JENKINS_ROOT/version-def.sh > /dev/null && echo $PROJECT_VER")
+                    PROJECT_VER = PROJECT_VER.split('-')[0] // Remove trailing '-SNAPSHOT'
+                }
+            }
+        }
 
         stage('Premerge Test') {
             when {
