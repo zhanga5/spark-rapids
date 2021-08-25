@@ -241,8 +241,8 @@ pipeline {
                 }
 
                 step([$class                : 'JUnitResultArchiver',
-                       testResults          : '**/target/*/TEST-*.xml'
-                       skipPublishingChecks : true,
+                       testResults          : '**/target/*/TEST-*.xml',
+                       skipPublishingChecks : true
                 ])
             }
         } // Collect Test Result
