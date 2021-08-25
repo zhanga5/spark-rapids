@@ -36,7 +36,7 @@ mvn_verify() {
     pre-commit run check-added-large-files --from-ref $BASE_REF --to-ref HEAD
 
     # Here run Python integration tests tagged with 'slow_test' only, that would require long duration or big memory. Such split would help
-    # balance test duration and memory consumption from two k8s pods running in parallel, which executes 'mvn_verify()' and 'unit_test()' respectively.
+    # balance test duration and memory consumption from two k8s pods running in parallel, which executes 'mvn_verify()' and 'integration_test()' respectively.
     mvn -U -B $MVN_URM_MIRROR '-P!snapshot-shims,pre-merge' clean verify -Dpytest.TEST_TAGS="slow_test" \
         -Dpytest.TEST_TYPE="pre-commit" -Dpytest.TEST_PARALLEL=5 -Dcuda.version=$CUDA_CLASSIFIER
 
@@ -92,8 +92,7 @@ rapids_shuffle_smoke_test() {
     $SPARK_HOME/sbin/stop-master.sh
 }
 
-unit_test() {
-    # TODO: this function should be named as 'integration_test()' but it would break backward compatibility. Need find a way to fix this.
+integration_test() {
     echo "Run integration testings..."
     mvn -U -B $MVN_URM_MIRROR clean package -DskipTests=true -Dcuda.version=$CUDA_CLASSIFIER
     TEST_TAGS="not slow_test" TEST_TYPE="pre-commit" TEST_PARALLEL=4 ./integration_tests/run_pyspark_from_build.sh
@@ -132,15 +131,15 @@ case $BUILD_TYPE in
     all)
         echo "Run all testings..."
         mvn_verify
-        unit_test
+        integration_test
         ;;
 
     mvn_verify)
         mvn_verify
         ;;
 
-    ut | unit_test)
-        unit_test
+    it | integration_test)
+        integration_test
         ;;
 
     *)
