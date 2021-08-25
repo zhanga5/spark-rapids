@@ -205,6 +205,8 @@ pipeline {
 
                 stage('Unit Test') {
                     when {
+                        beforeAgent true
+                        beforeOptions true
                         expression {
                             PROJECT_VER == "21.08.0"
                         }
@@ -240,6 +242,8 @@ pipeline {
 
                 stage('Integration Test') {
                     when {
+                        beforeAgent true
+                        beforeOptions true
                         expression {
                             PROJECT_VER == "21.10.0"
                         }
