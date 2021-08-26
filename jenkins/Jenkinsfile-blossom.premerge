@@ -223,6 +223,14 @@ pipeline {
                 } // end of mvn verify stage
 
                 stage('Premerge CI 2') {
+                    when {
+                        beforeAgent true
+                        beforeOptions true
+                        expression {
+                            major >= 21 && minor >= 8
+                        }
+                    }
+
                     options {
                         // We have to use params to pass the resource label in options block,
                         // this is a limitation of declarative pipeline. And we need to lock resource before agent start
