@@ -33,6 +33,7 @@ def IMAGE_PREMERGE // temp image for premerge test
 def PREMERGE_TAG
 def skipped = false
 def PROJECT_VER // project version retrieved from 'version-def.sh' to determine compatible stages
+def PREMERGE_CI_2_ARGUMENT // argument for 'spark-premerge-build.sh' running from stage of Premerge CI 2
 
 pipeline {
     agent {
@@ -153,6 +154,24 @@ pipeline {
                     PROJECT_VER = sh(returnStdout: true, script: "bash $JENKINS_ROOT/version-def.sh | cut -d ',' -f 3 | cut -d ' ' -f 3")
                     PROJECT_VER = PROJECT_VER.split('-')[0] // Remove trailing '-SNAPSHOT'
                     echo PROJECT_VER
+
+                    def versions = PROJECT_VER.split('\\.')
+                    def major = versions[0].toInteger()
+                    def minor = versions[1].toInteger()
+
+                    if (major >= 21) {
+                        if (minor == 8) {
+                            PREMERGE_CI_2_ARGUMENT = "unit_test" // for '21.08' version
+                        } else if (minor >= 10) {
+                            PREMERGE_CI_2_ARGUMENT = "ci_2" // for '21.10' or later version
+                        } else {
+                            // do nothing to avoid breaking old version
+                        }
+                    } else {
+                        error("Unsupported major version: $major")
+                    }
+
+                    echo PREMERGE_CI_2_ARGUMENT
                 }
             }
         }
@@ -178,7 +197,7 @@ pipeline {
                     }
                     agent {
                         kubernetes {
-                            label "premerge-test-it-${BUILD_TAG}"
+                            label "premerge-ci-1-${BUILD_TAG}"
                             cloud 'sc-ipp-blossom-prod'
                             yaml pod.getGPUYAML("${IMAGE_PREMERGE}", "${env.GPU_RESOURCE}", '8', '32Gi') // cpu: 8, memory: 32Gi
                             workspaceVolume persistentVolumeClaimWorkspaceVolume(claimName: "${PVC}", readOnly: false)
@@ -203,15 +222,7 @@ pipeline {
                     }
                 } // end of mvn verify stage
 
-                stage('Unit Test') {
-                    when {
-                        beforeAgent true
-                        beforeOptions true
-                        expression {
-                            PROJECT_VER == "21.08.0"
-                        }
-                    }
-
+                stage('Premerge CI 2') {
                     options {
                         // We have to use params to pass the resource label in options block,
                         // this is a limitation of declarative pipeline. And we need to lock resource before agent start
@@ -219,11 +230,11 @@ pipeline {
                     }
                     agent {
                         kubernetes {
-                            label "premerge-test-ut-${BUILD_TAG}"
+                            label "premerge-ci-2-${BUILD_TAG}"
                             cloud 'sc-ipp-blossom-prod'
                             yaml pod.getGPUYAML("${IMAGE_PREMERGE}", "${env.GPU_RESOURCE}", '8', '32Gi') // cpu: 8, memory: 32Gi
                             workspaceVolume persistentVolumeClaimWorkspaceVolume(claimName: "${PVC}", readOnly: false)
-                            customWorkspace "${CUSTOM_WORKSPACE}-ut" // Use different workspace to avoid conflict with IT
+                            customWorkspace "${CUSTOM_WORKSPACE}-ci-2" // Use different workspace to avoid conflict with IT
                         }
                     }
 
@@ -233,49 +244,12 @@ pipeline {
 
                             container('gpu') {
                                 timeout(time: 4, unit: 'HOURS') {
-                                    sh "$PREMERGE_SCRIPT unit_test"
+                                    sh "$PREMERGE_SCRIPT $PREMERGE_CI_2_ARGUMENT"
                                 }
                             }
                         }
                     }
                 } // end of Unit Test stage
-
-                stage('Integration Test') {
-                    when {
-                        beforeAgent true
-                        beforeOptions true
-                        expression {
-                            PROJECT_VER == "21.10.0"
-                        }
-                    }
-
-                    options {
-                        // We have to use params to pass the resource label in options block,
-                        // this is a limitation of declarative pipeline. And we need to lock resource before agent start
-                        lock(label: "${params.GPU_POOL}", quantity: 1, variable: 'GPU_RESOURCE')
-                    }
-                    agent {
-                        kubernetes {
-                            label "premerge-test-it-${BUILD_TAG}"
-                            cloud 'sc-ipp-blossom-prod'
-                            yaml pod.getGPUYAML("${IMAGE_PREMERGE}", "${env.GPU_RESOURCE}", '8', '32Gi') // cpu: 8, memory: 32Gi
-                            workspaceVolume persistentVolumeClaimWorkspaceVolume(claimName: "${PVC}", readOnly: false)
-                            customWorkspace "${CUSTOM_WORKSPACE}-it" // Use different workspace to avoid conflict with first pod
-                        }
-                    }
-
-                    steps {
-                        script {
-                            unstash "source_tree"
-
-                            container('gpu') {
-                                timeout(time: 4, unit: 'HOURS') {
-                                    sh "$PREMERGE_SCRIPT integration_test"
-                                }
-                            }
-                        }
-                    }
-                } // end of Integration Test stage
             } // end of parallel
         } // end of Premerge Test
     } // end of stages
