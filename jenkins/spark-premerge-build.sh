@@ -27,6 +27,43 @@ elif [[ $# -gt 1 ]]; then
     exit 1
 fi
 
+BUILD_PARALLEL=${BUILD_PARALLEL:-4}
+
+export MVN_BASE_DIR=$(mvn help:evaluate -Dexpression=project.basedir -q -DforceStdout)
+
+build_single_shim() {
+  set -x
+  BUILD_VER=$1
+
+  if [[ "$BUILD_VER" == "311" || "$BUILD_VER" == "320" ]]; then
+    # Run unit test
+    EXTRA_ARGS=-Dpytest.TEST_TAGS=''
+  else
+    EXTRA_ARGS='-DskipTests -pl aggregator -am'
+  fi
+
+  mkdir -p "$MVN_BASE_DIR/target"
+  LOG_FILE="$MVN_BASE_DIR/target/mvn-build-$BUILD_VER.log"
+
+  echo "### Begin to build_single_shim($BUILD_VER) ###" > $LOG_FILE
+
+  env -u SPARK_HOME mvn -e -U -B $MVN_URM_MIRROR install \
+      -Dbuildver="$BUILD_VER" \
+      -Drat.skip=true \
+      -Dmaven.javadoc.skip=true \
+      -Dskip \
+      -Dmaven.scalastyle.skip=true \
+      -Dcuda.version=$CUDA_CLASSIFIER \
+      $EXTRA_ARGS > "$LOG_FILE" 2>&1 || {
+        echo "### Failed to build_single_shim($BUILD_VER) ###" >> $LOG_FILE
+        cat $LOG_FILE
+        exit 255
+      }
+
+  echo "### Endof of build_single_shim($BUILD_VER) ###" >> $LOG_FILE
+}
+
+export -f build_single_shim
 
 mvn_verify() {
     echo "Run mvn verify..."
@@ -35,18 +72,17 @@ mvn_verify() {
     # file size check for pull request. The size of a committed file should be less than 1.5MiB
     pre-commit run check-added-large-files --from-ref $BASE_REF --to-ref HEAD
 
-    # build all the versions but only run unit tests on one 3.0.X version (base version covers this), one 3.1.X version, and one 3.2.X version.
+    echo "Clean once across all modules"
+    mvn -q clean
+
+    # build all the versions in parallel but only run unit tests on one 3.0.X version (base version covers this), one 3.1.X version, and one 3.2.X version.
     # All others shims test should be covered in nightly pipelines
-    env -u SPARK_HOME mvn -U -B $MVN_URM_MIRROR -Dbuildver=302 clean install -Drat.skip=true -DskipTests -Dmaven.javadoc.skip=true -Dskip -Dmaven.scalastyle.skip=true -Dcuda.version=$CUDA_CLASSIFIER -pl aggregator -am
-    env -u SPARK_HOME mvn -U -B $MVN_URM_MIRROR -Dbuildver=303 clean install -Drat.skip=true -DskipTests -Dmaven.javadoc.skip=true -Dskip -Dmaven.scalastyle.skip=true -Dcuda.version=$CUDA_CLASSIFIER -pl aggregator -am
-    env -u SPARK_HOME mvn -U -B $MVN_URM_MIRROR -Dbuildver=304 clean install -Drat.skip=true -DskipTests -Dmaven.javadoc.skip=true -Dskip -Dmaven.scalastyle.skip=true -Dcuda.version=$CUDA_CLASSIFIER -pl aggregator -am
-    # don't skip tests
-    env -u SPARK_HOME mvn -U -B $MVN_URM_MIRROR -Dbuildver=311 clean install -Drat.skip=true -Dmaven.javadoc.skip=true -Dskip -Dmaven.scalastyle.skip=true -Dcuda.version=$CUDA_CLASSIFIER -Dpytest.TEST_TAGS=''
-    env -u SPARK_HOME mvn -U -B $MVN_URM_MIRROR -Dbuildver=311cdh clean install -Drat.skip=true -DskipTests -Dmaven.javadoc.skip=true -Dskip -Dmaven.scalastyle.skip=true -Dcuda.version=$CUDA_CLASSIFIER -pl aggregator -am
-    env -u SPARK_HOME mvn -U -B $MVN_URM_MIRROR -Dbuildver=312 clean install -Drat.skip=true -DskipTests -Dmaven.javadoc.skip=true -Dskip -Dmaven.scalastyle.skip=true -Dcuda.version=$CUDA_CLASSIFIER -pl aggregator -am
-    env -u SPARK_HOME mvn -U -B $MVN_URM_MIRROR -Dbuildver=313 clean install -Drat.skip=true -DskipTests -Dmaven.javadoc.skip=true -Dskip -Dmaven.scalastyle.skip=true -Dcuda.version=$CUDA_CLASSIFIER -pl aggregator -am
-    # don't skip tests
-    env -u SPARK_HOME mvn -U -B $MVN_URM_MIRROR -Dbuildver=320 clean install -Drat.skip=true -Dmaven.javadoc.skip=true -Dskip -Dmaven.scalastyle.skip=true -Dcuda.version=$CUDA_CLASSIFIER -Dpytest.TEST_TAGS=''
+    build_single_shim 302
+    SPARK_SHIM_VERSIONS=(303 304 311 311cdh 312 313 320)
+    printf "%s\n" "${SPARK_SHIM_VERSIONS[@]}" | xargs -t -I% -n1 -P "$BUILD_PARALLEL" bash -c 'build_single_shim %'
+
+    # Dump build logs
+    cat $MVN_BASE_DIR/target/mvn-build-*.log
 
     # Here run Python integration tests tagged with 'premerge_ci_1' only, that would help balance test duration and memory
     # consumption from two k8s pods running in parallel, which executes 'mvn_verify()' and 'ci_2()' respectively.
