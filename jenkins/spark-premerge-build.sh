@@ -27,7 +27,7 @@ elif [[ $# -gt 1 ]]; then
     exit 1
 fi
 
-BUILD_PARALLEL=${BUILD_PARALLEL:-4}
+BUILD_PARALLEL=${BUILD_PARALLEL:-1}
 
 export MVN_BASE_DIR=$(mvn help:evaluate -Dexpression=project.basedir -q -DforceStdout)
 
