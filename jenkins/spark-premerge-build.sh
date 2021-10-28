@@ -78,9 +78,10 @@ mvn_verify() {
     wget -q https://github.com/takari/takari-local-repository/archive/refs/tags/takari-local-repository-0.10.4.tar.gz
     tar xf takari-local-repository-0.10.4.tar.gz
     cd takari-local-repository-takari-local-repository-0.10.4/ && mvn install
-    cp ~/.m2/repository/io/takari/aether/takari-local-repository/0.10.4/takari-local-repository-0.10.4.jar /usr/share/maven/lib/
-    cp ~/.m2/repository/io/takari/takari-filemanager/0.8.2/takari-filemanager-0.8.2.jar /usr/share/maven/lib/
-    ls -l /usr/share/maven/lib
+    mkdir -p /usr/share/maven/lib/ext/
+    cp ~/.m2/repository/io/takari/aether/takari-local-repository/0.10.4/takari-local-repository-0.10.4.jar /usr/share/maven/lib/ext/
+    cp ~/.m2/repository/io/takari/takari-filemanager/0.8.2/takari-filemanager-0.8.2.jar /usr/share/maven/lib/ext/
+    ls -l /usr/share/maven/lib/ext/
     popd
 
     echo "Clean once across all modules"
