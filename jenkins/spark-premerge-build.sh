@@ -27,7 +27,7 @@ elif [[ $# -gt 1 ]]; then
     exit 1
 fi
 
-BUILD_PARALLEL=${BUILD_PARALLEL:-1}
+BUILD_PARALLEL=${BUILD_PARALLEL:-4}
 
 export MVN_BASE_DIR=$(mvn help:evaluate -Dexpression=project.basedir -q -DforceStdout)
 
@@ -72,13 +72,19 @@ mvn_verify() {
     # file size check for pull request. The size of a committed file should be less than 1.5MiB
     pre-commit run check-added-large-files --from-ref $BASE_REF --to-ref HEAD
 
+    # Install mvn plugin for parallel build testing: takari-local-repository
+    wget -q https://github.com/takari/takari-local-repository/archive/refs/tags/takari-local-repository-0.10.4.tar.gz
+    tar xf takari-local-repository-0.10.4.tar.gz
+    cd takari-local-repository-takari-local-repository-0.10.4/ && mvn install
+    cp ~/.m2/repository/io/takari/aether/takari-local-repository/0.10.4/takari-local-repository-0.10.4.jar /usr/share/maven/lib/
+    cp ~/.m2/repository/io/takari/takari-filemanager/0.8.2/takari-filemanager-0.8.2.jar /usr/share/maven/lib/
+
     echo "Clean once across all modules"
     mvn -q clean
 
     # build all the versions in parallel but only run unit tests on one 3.0.X version (base version covers this), one 3.1.X version, and one 3.2.X version.
     # All others shims test should be covered in nightly pipelines
-    build_single_shim 302
-    SPARK_SHIM_VERSIONS=(303 304 311 311cdh 312 313 320)
+    SPARK_SHIM_VERSIONS=(302 303 304 311 311cdh 312 313 320)
     printf "%s\n" "${SPARK_SHIM_VERSIONS[@]}" | xargs -t -I% -n1 -P "$BUILD_PARALLEL" bash -c 'build_single_shim %'
 
     # Dump build logs
